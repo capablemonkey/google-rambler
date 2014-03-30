@@ -1,6 +1,6 @@
 var express = require('express');
 var app = express();
-var io = require('socket.io').listen(3001);
+var io = require('socket.io').listen(80);
 var auto = require('./app')
 var async = require('async')
 
@@ -37,6 +37,6 @@ app.get('/', function(req, res){
   res.sendfile("public/index.html");
 });
 
-var server = app.listen(3000, function() {
+var server = app.listen(80, function() {
     console.log('Listening on port %d', server.address().port);
 });

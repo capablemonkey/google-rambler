@@ -1,7 +1,0 @@
-{
-  "packages": {
-    "auto": {
-      "path": "../autocomplete"
-    }
-  }
-}
