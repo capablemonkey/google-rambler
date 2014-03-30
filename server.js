@@ -1,8 +1,19 @@
 var express = require('express');
 var app = express();
-var io = require('socket.io').listen(80);
+
 var auto = require('./app')
 var async = require('async')
+
+
+app.get('/', function(req, res){
+  res.sendfile("public/index.html");
+});
+
+var server = app.listen(80, function() {
+    console.log('Listening on port %d', server.address().port);
+});
+
+var io = require('socket.io').listen(server);
 
 io.sockets.on('connection', function (socket) {
   socket.on('seed', function (data) {
@@ -31,12 +42,4 @@ io.sockets.on('connection', function (socket) {
 		})
     })
   });
-});
-
-app.get('/', function(req, res){
-  res.sendfile("public/index.html");
-});
-
-var server = app.listen(80, function() {
-    console.log('Listening on port %d', server.address().port);
 });
