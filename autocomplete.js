@@ -30,15 +30,3 @@ exports.getQuerySuggestions = function(string, callback) {
 		callback(null, filtered)
 	})
 }
-
-// suggestions= [
-// 	{
-// 		text: "birdman",
-// 		relevance: 600,
-// 		type: "QUERY"
-// 	}
-// ]
-
-// Query("Bird").complete(function(err, suggestions) {
-// 	console.log(suggestions)
-// }

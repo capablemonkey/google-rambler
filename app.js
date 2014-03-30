@@ -1,9 +1,10 @@
 autocomplete = require('./autocomplete');
 emit = require("events").EventEmitter;
-var async = require('async');
-var s = require('./string.metrics')
+async = require('async');
+s = require('./string.metrics')
 
 function Query(string) {
+	console.log('lol')
 	this.seed = string;
 	this.history = [];
 	this.current = this.seed;
@@ -65,7 +66,7 @@ function SuggestionSet(current, suggestions) {
 		foo = item
 		foo['length'] = item.suggestion.length;
 		foo['difference'] = calculateDifference(item.suggestion, current);
-		foo['score'] = foo['difference'] + foo['length'];
+		foo['score'] = (foo['difference'] + foo['length']) * Math.random();
 		return foo;
 	})
 
@@ -87,10 +88,12 @@ Query.prototype.getNext = function(callback) {
 
 	// split into possible queries
 	queries = this.current.split(" ").map(function(el, index, arr){return arr.slice(index, arr.length).join(" ")})
+	queries = this.current.split(" ").slice(-1)
 	console.log(" possible nexts: ", queries)
 
 	// determine which query would yield the most suggestions with the longest lengths
 	findBestSuggestion(this.current, queries, function(suggestion) {
+		if (!suggestion) return callback("no results :(")
 		best = suggestion.suggestion
 		console.log("  best: ", best)
 
@@ -156,7 +159,6 @@ var again = function(err, callback) {
 
 exports.Query = Query 
 
-// a
 // l.complete(function() {
 // 	todo = [start]
 // 	for (var x=0; x < 10; x++) {todo.push(again)}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>hello</title>
+	<script src="http://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
+	<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
+	<script>
+	  var socket = io.connect('http://localhost:3001');
+	  socket.on('feed', function (data) {
+	    $("#stuff").text(data.text)
+	  });
+
+	  $(document).ready(function() {
+	  	$("#go").on("click", function(){
+	  		o = $("#lol").val()
+	  		socket.emit("seed", {seed: o})
+	  	})
+	  })
+	</script>
+</head>
+<body>
+hi
+
+<input id="lol" />
+<button id="go">go!</button>
+
+<div id="stuff"></div>
+</body>
+</html>
