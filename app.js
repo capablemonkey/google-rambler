@@ -1,6 +1,7 @@
 autocomplete = require('./autocomplete');
 emit = require("events").EventEmitter;
-var async = require('async')
+var async = require('async');
+var s = require('./string.metrics')
 
 function Query(string) {
 	this.seed = string;
@@ -25,38 +26,109 @@ function Query(string) {
 	}
 }
 
+// find best suggestion
+function findBestSuggestion (current, queries, cb) {
+	results = []
+	async.waterfall([
+		// get suggestions for all queries
+		function(callback) {
+			queries.forEach(function (query) {
+				autocomplete.getQuerySuggestions(query, function(err, suggestions) {
+					results.push(suggestions)
+					if (results.length == queries.length) callback()
+				})
+			})
+		},
+		// calculate score for each query
+		function(callback) {
+			// [{query: "", score: 900, suggestion: ""}]
+			flat = results.reduce(function(a, b) {
+				return a.concat(b)
+			})
+
+			k = new SuggestionSet(current, flat)
+			callback(null, k.findBest())
+		}
+		], 
+		function(err, result) {
+			cb(result)
+		}
+	)
+}
+
+function calculateDifference(str1, str2) {
+	return s.metrics.levenshteinDistance(str1, str2)
+}
+
+function SuggestionSet(current, suggestions) {
+	this.items = suggestions.map(function(item) {
+		foo = item
+		foo['length'] = item.suggestion.length;
+		foo['difference'] = calculateDifference(item.suggestion, current);
+		foo['score'] = foo['difference'] + foo['length'];
+		return foo;
+	})
+
+	this.findBest = function() {
+		return this.items.sort(function(a, b) {
+			return b.score - a.score
+		})[0]
+	}
+}
+
+// developmentally challenged + developmentally challenged youth basketball association = developmentally challenged youth basketball association
+// "factset investor relations" + "relationship advice for women" = "factset investor relationship advice for women"
+
+// compare end of string to beginning of next string
+// as you iterate, if string is equal, truncat
+
 Query.prototype.getNext = function(callback) {
 	that = this
 
-	// determine next query
-	if (this.current.indexOf(" ") != -1) {
-		next = this.current.split(" ").slice(-1)[0]
-	}
-	else {
-		next = this.current
-	}
+	// split into possible queries
+	queries = this.current.split(" ").map(function(el, index, arr){return arr.slice(index, arr.length).join(" ")})
+	console.log(" possible nexts: ", queries)
 
-	console.log("  next: ", next)
-
-	autocomplete.getQuerySuggestions(next, function(err, suggestions) {
-		if (err) callback(err)
-		best = suggestions[0].suggestion
+	// determine which query would yield the most suggestions with the longest lengths
+	findBestSuggestion(this.current, queries, function(suggestion) {
+		best = suggestion.suggestion
 		console.log("  best: ", best)
 
-		// if next is part of first word, do not cut.
-		if (best.split(" ")[0].indexOf(next) != -1) {
-			result = best
-			if (best.split(" ")[0] == next) result = best.split(' ').slice(1).join(' ')
+		old = that.current.split(" ")
+		n = best.split(" ")
+
+		// old = "developmentally challenged".split(" ")
+		// n = "developmentally challenged youth basketball association".split(" ")
+
+		// remove carried over chunks of words
+
+		index = -1;
+
+		for (var i = 1; i <= old.length; i++) {
+			if(n.slice(0, i).join(" ") == old.slice(-(i)).join(" ")) n = n.slice(i);
 		}
-		else result = best.slice(best.indexOf(next) + next.length)
+
+		result = n.join(" ")
+
+		// remove similar words from history
+
+		for (var i = 1; i <= old.length; i++) {
+			if(n.slice(0, i).join(" ").indexOf(old.slice(-(i)).join(" ")) != -1) {
+				last = that.history.slice(-1)[0].split(" ")
+				that.history[that.history.length - 1] = last.slice(0, last.length - i).join(" ")
+			}
+		}
 
 		console.log("  result: ", result)
 
 		that.current = result
 		that.history.push(result)
 		callback(null, result)
-	})
+	});
 }
+
+// deciding which suggestion to keep
+// deciding what is next to query
 
 Query.prototype.mergeHistory = function() {
 	//[kayak explore', 'explorer of the seas', 'seasons 52' ]
@@ -71,91 +143,25 @@ Query.prototype.mergeHistory = function() {
 	}).join(" ")
 }
 
-l = new Query("kayak")
-l.complete(function() {
-	async.waterfall([
-		function(callback) {
-			console.log(l.mergeHistory())
-			l.getNext(callback)
-		},
-		function(err, callback) {
-			console.log(l.mergeHistory())
-			l.getNext(callback)
-		},
-		function(err, callback) {
-			console.log(l.mergeHistory())
-			l.getNext(callback)
-		},
-		function(err, callback) {
-			console.log(l.mergeHistory())
-			l.getNext(callback)
-		},
-		function(err, callback) {
-			console.log(l.mergeHistory())
-			l.getNext(callback)
-		},
-	], function(err, result) {
-		console.log(result)
-})
-	}
-)
+var start = function(callback) {
+	console.log(l.mergeHistory())
+	l.getNext(callback)
+}
 
-// l = new Query("sleepy").complete(function() {
-// 	console.log(l.seed)
-// 	// l.getNext(function(err, result) {
-// 	// 	console.log(l.seed)
-// 	// 	console.log(l.current)
-// 	// })
-// })
+var again = function(err, callback) {
+	console.log(l.mergeHistory())
+	console.log(l.history)
+	l.getNext(callback)
+}
 
+exports.Query = Query 
 
-// var getNext = function(current, callback) {
+// a
+// l.complete(function() {
+// 	todo = [start]
+// 	for (var x=0; x < 10; x++) {todo.push(again)}
 
-
-// 	autocomplete.getQuerySuggestions(current, function(err, suggestions) {
-// 		if (err) callback(err)
-// 		best = suggestions[0].suggestion
-// 		result = best.slice(best.indexOf(current) + current.length)
-// 		callback(null, result)
-// 	})
-// }
-
-// var start = function(string, callback) {
-// 	autocomplete.getQuerySuggestions(string, function(err, suggestions) {
-// 		if (err) callback(err)
-// 		best = suggestions[0].suggestion
-// 		callback(null, best)
-// 	})
-// }
-
-// start("sleepy", function(err, result) {
-// 	console.log(result)
-
-// 	if (result.indexOf(" ") != -1) {
-// 		next = result.split().slice(-1)[0]
-// 	}
-// 	else {
-// 		next = result
-// 	}
-	
-// 	getNext(next, function(err, result) {
-// 		console.log(result)
+// 	async.waterfall(todo, function(err, result) {
+// 		console.log("done!")
 // 	})
 // })
-
-// get results
-// choose suggestion
-// decide next query
-
-// l = Query("house")
-// >> house cards with snow
-// l.getNextWithLastWord()
-// >> in the late winter
-// l.seed
-// >> "house"
-// l.history
-// >> ["cards with snow", "in the late winter"]
-// l.current
-// >> "in the late winter"
-// l.getNextWithLastWord()
-// >> "is so damn cold"
