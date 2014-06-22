@@ -9,6 +9,7 @@
     "async": "0.4.0",
     "express": "3.x",
     "ejs": "*",
-    "socket.io": "0.9"
+    "socket.io": "0.9",
+    "underscore": "1.6.0"
   }
 }

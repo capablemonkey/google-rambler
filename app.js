@@ -2,9 +2,9 @@ autocomplete = require('./autocomplete');
 emit = require("events").EventEmitter;
 async = require('async');
 s = require('./string.metrics')
+_ = require('underscore')
 
 function Query(string) {
-	console.log('lol')
 	this.seed = string;
 	this.history = [];
 	this.current = this.seed;
@@ -13,9 +13,11 @@ function Query(string) {
 	var ee = new emit();
 
 	autocomplete.getQuerySuggestions(this.seed, function(err, suggestions) {
-		best = suggestions[0].suggestion
+		best = _.last(suggestions).suggestion
 		that.history.push(best)
 		that.current = best
+
+		console.log("typeof best: ", typeof(best))
 
 		ee.emit("finishedLookup");
 	})
@@ -43,9 +45,7 @@ function findBestSuggestion (current, queries, cb) {
 		// calculate score for each query
 		function(callback) {
 			// [{query: "", score: 900, suggestion: ""}]
-			flat = results.reduce(function(a, b) {
-				return a.concat(b)
-			})
+			flat = _.flatten(results) 
 
 			k = new SuggestionSet(current, flat)
 			callback(null, k.findBest())
@@ -57,23 +57,17 @@ function findBestSuggestion (current, queries, cb) {
 	)
 }
 
-function calculateDifference(str1, str2) {
-	return s.metrics.levenshteinDistance(str1, str2)
-}
-
 function SuggestionSet(current, suggestions) {
 	this.items = suggestions.map(function(item) {
 		foo = item
 		foo['length'] = item.suggestion.length;
-		foo['difference'] = calculateDifference(item.suggestion, current);
+		foo['difference'] = s.metrics.levenshteinDistance(item.suggestion, current);
 		foo['score'] = (foo['difference'] + foo['length']) * Math.random();
 		return foo;
 	})
 
 	this.findBest = function() {
-		return this.items.sort(function(a, b) {
-			return b.score - a.score
-		})[0]
+		return _.max(this.items, function(item) {return item.score})
 	}
 }
 
@@ -87,11 +81,10 @@ Query.prototype.getNext = function(callback) {
 	that = this
 
 	// split into possible queries
-	queries = this.current.split(" ").map(function(el, index, arr){return arr.slice(index, arr.length).join(" ")})
-	queries = this.current.split(" ").slice(-1)
+	queries = this.current.split(" ").map(function(el, index, arr){return arr.slice(index, arr.length).join(" ") + " "})
+	//queries = this.current.split(" ").slice(-1)
 	console.log(" possible nexts: ", queries)
 
-	// determine which query would yield the most suggestions with the longest lengths
 	findBestSuggestion(this.current, queries, function(suggestion) {
 		if (!suggestion) return callback("no results :(")
 		best = suggestion.suggestion
@@ -105,29 +98,35 @@ Query.prototype.getNext = function(callback) {
 
 		// remove carried over chunks of words
 
-		index = -1;
+		result = _.difference(n, old).join(" ")
 
-		for (var i = 1; i <= old.length; i++) {
-			if(n.slice(0, i).join(" ") == old.slice(-(i)).join(" ")) n = n.slice(i);
-		}
+		// p ="factset investor relations"
+		// k = "relationship advice for women"
 
-		result = n.join(" ")
-
-		// remove similar words from history
+		// // remove similar words from history
+		// last = reverseChunkify(_.last(that.history))
+		// current = chunkify(n)
+		// that.history = _.intersection(last, current)
 
 		for (var i = 1; i <= old.length; i++) {
 			if(n.slice(0, i).join(" ").indexOf(old.slice(-(i)).join(" ")) != -1) {
-				last = that.history.slice(-1)[0].split(" ")
+				last = _.last(that.history).split(" ")
 				that.history[that.history.length - 1] = last.slice(0, last.length - i).join(" ")
 			}
 		}
-
-		console.log("  result: ", result)
 
 		that.current = result
 		that.history.push(result)
 		callback(null, result)
 	});
+}
+
+function reverseChunkify(phrase) {
+	return phrase.split(" ").map(function(el, index, arr){return arr.slice(index, arr.length).join(" ")})
+}
+
+function chunkify(phrase) {
+	return phrase.split(" ").map(function(el, index, arr){return arr.slice(0, index+1).join(" ")})
 }
 
 // deciding which suggestion to keep
@@ -137,24 +136,13 @@ Query.prototype.mergeHistory = function() {
 	//[kayak explore', 'explorer of the seas', 'seasons 52' ]
 	history = this.history
 
-	// remove words that are auto-completed
+	// remove words that are autocompleted by the next word
 	return history.reduce(function(prev, curr) {
 		return prev.concat(curr.split(" "))
 	}, []).filter(function(val, index, arr) {
 		if (arr[index + 1] && (arr[index + 1].indexOf(val) != -1)) return false;
 		return true;
 	}).join(" ")
-}
-
-var start = function(callback) {
-	console.log(l.mergeHistory())
-	l.getNext(callback)
-}
-
-var again = function(err, callback) {
-	console.log(l.mergeHistory())
-	console.log(l.history)
-	l.getNext(callback)
 }
 
 exports.Query = Query 
