@@ -13,7 +13,8 @@ function Query(string) {
 	var ee = new emit();
 
 	autocomplete.getQuerySuggestions(this.seed, function(err, suggestions) {
-		best = _.last(suggestions).suggestion
+		if (suggestions.length === 0) return 0;
+		best = _.last(suggestions).suggestion || null;
 		that.history.push(best)
 		that.current = best
 
